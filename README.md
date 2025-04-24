@@ -4,7 +4,8 @@
   ## Backend
   Технологический стек:
    - Framework - FastApi
-  - ORM - SQLAlchemy 
+  - ORM - SQLAlchemy
+  - Миграции - Alembic
   - БД - Postgres
   - Сбор метрик - Prometheus
   - Отрисовка дашбордов - Grafana
