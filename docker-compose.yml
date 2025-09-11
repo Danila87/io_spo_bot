@@ -1,0 +1,106 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+      POSTGRES_DB: io_spo_bot_prod
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    environment:
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      GF_LOG_FILTERS: rendering:debu
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  renderer:
+    container_name: grafana-image-renderer
+    image: grafana/grafana-image-renderer:latest
+    environment:
+      - ENABLE_METRICS=true
+      - RENDERING_MODE=clustered
+      - RENDERING_CLUSTERING_MODE=context
+      - RENDERING_CLUSTERING_MAX_CONCURRENCY=6
+    ports:
+      - 8081:8081
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./docker/conf/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=admin
+    volumes:
+      - redis_data:/redis/
+    restart: always
+
+  api:
+    platform: linux/amd64
+    image: ghcr.io/danila87/io_spo_bot_api:latest
+    container_name: api
+    ports:
+      - 8000:8000
+    environment:
+      - VAULT_URL=http://vault:8200
+    volumes:
+      - ./docker/conf/s3:/root/.selectels3
+    depends_on:
+      - postgres
+
+  telegram_bot:
+    platform: linux/amd64
+    container_name: telegram_bot
+    image: ghcr.io/danila87/io_spo_bot_tg:latest
+    environment:
+      - VAULT_URL=http://vault:8200
+    depends_on:
+      - api
+      - redis
+      - grafana
+      - renderer
+
+  vault:
+    container_name: vault
+    image: hashicorp/vault
+    restart: always
+    command: vault server -config=/vault/config/vault.json
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - 8200:8200
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_API_ADDR=http://0.0.0.0:8200
+      - VAULT_ADDRESS=http://0.0.0.0:8200
+    volumes:
+      - vault:/vault
+      - ./docker/conf/vault.json:/vault/config/vault.json
+
+volumes:
+  redis_data:
+  postgres:
+  prometheus_data:
+  grafana_data:
+  vault:
