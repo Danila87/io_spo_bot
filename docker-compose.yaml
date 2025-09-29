@@ -1,3 +1,12 @@
+x-loki_log: &default_loki_log
+  driver: "loki"
+
+x-loki_log_options: &default_loki_log_options
+  loki-url: "http://localhost:3100/loki/api/v1/push"
+  loki-batch-size: "400"
+  loki-timeout: "5s"
+
+
 services:
 
   postgres:
@@ -23,6 +32,17 @@ services:
       GF_LOG_FILTERS: rendering:debu
     volumes:
       - grafana_data:/var/lib/grafana
+
+  loki:
+    image: grafana/loki
+    container_name: loki
+    environment:
+      TZ: "Europe/Moscow"
+    ports:
+      - 3100:3100
+    command: -config.file=/etc/loki/loki.yaml
+    volumes:
+      - ./docker/conf/loki.yaml:/etc/loki/loki.yaml
 
   renderer:
     container_name: grafana-image-renderer
@@ -68,6 +88,11 @@ services:
       - ./docker/conf/s3:/root/.selectels3
     depends_on:
       - postgres
+    logging:
+      <<: *default_loki_log
+      options:
+        <<: *default_loki_log_options
+        loki-external-labels: "app=api"
 
   telegram_bot:
     platform: linux/amd64
