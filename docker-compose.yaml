@@ -100,11 +100,18 @@ services:
     image: ghcr.io/danila87/io_spo_bot_tg:latest
     environment:
       - VAULT_URL=http://vault:8200
+    ports:
+      - 8001:8001
     depends_on:
       - api
       - redis
       - grafana
       - renderer
+    logging:
+      <<: *default_loki_log
+      options:
+        <<: *default_loki_log_options
+        loki-external-labels: "app=telegram_bot"
 
   vault:
     container_name: vault
